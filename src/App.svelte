@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { XMLParser } from 'fast-xml-parser'
+  import { XMLParser, XMLBuilder } from 'fast-xml-parser'
 
   enum CoursePointType {
     Generic = 'Generic',
@@ -8,6 +8,20 @@
     Right = 'Right',
     Straight = 'Straight',
     // TODO: 他のも追加する
+  }
+  function emoji(type: CoursePointType): '⬆' | '⬅' | '➡' | '🍙' | '📍' {
+    switch (type) {
+      case CoursePointType.Generic:
+        return '📍'
+      case CoursePointType.FirstAid:
+        return '🍙'
+      case CoursePointType.Left:
+        return '⬅'
+      case CoursePointType.Right:
+        return '➡'
+      case CoursePointType.Straight:
+        return '⬆'
+    }
   }
 
   type Position = {
@@ -49,6 +63,7 @@
 
   function handleFileInput() {
     const parser = new XMLParser({
+      ignoreAttributes: false,
       isArray: (name, jpath) => {
         return (
           ['CourseNameRef', 'Course', 'Track', 'CoursePoint'].includes(name) ||
@@ -124,6 +139,23 @@
       ]
     }
   }
+
+  let xmlData: string
+  function exportTCX() {
+    const builder = new XMLBuilder({
+      format: true,
+      ignoreAttributes: false,
+      tagValueProcessor: (name, value) => {
+        if (name == 'Time' && value instanceof Date) {
+          return value.toISOString()
+        } else {
+          return value as string
+        }
+      },
+    })
+
+    xmlData = encodeURIComponent(builder.build(typedCourse) as string)
+  }
 </script>
 
 <main>
@@ -133,6 +165,12 @@
       <input bind:files on:change={handleFileInput} type="file" accept=".tcx" required />
     </label>
   </form>
+
+  <button on:click|preventDefault={exportTCX}>encode</button>
+
+  {#if xmlData}
+    <a href={`data:text/xml;charset=utf-8,${xmlData}`} download="out.tcx">Download</a>
+  {/if}
 
   <form on:submit|preventDefault={handleAddingCoursePoint}>
     <label>
@@ -150,37 +188,37 @@
     <button> 追加する </button>
   </form>
 
-  {#if typedCourse}
-    <ul>
-      {#each typedCourse.TrainingCenterDatabase.Courses.Course[0].CoursePoint as coursePoint}
-        {@const trackPoint = timeEquivalentTrackPoint(coursePoint.Time)}
+  <table>
+    <tbody>
+      {#if typedCourse}
+        <ul>
+          {#each typedCourse.TrainingCenterDatabase.Courses.Course[0].CoursePoint as coursePoint}
+            {@const trackPoint = timeEquivalentTrackPoint(coursePoint.Time)}
 
-        <div>
-          <div>
-            {JSON.stringify(coursePoint)}
-            <form>
-              <label>
-                名前
-                <input bind:value={coursePoint.Name} type="string" maxlength="10" />
-              </label>
-
-              <label>
-                ポイント種別
+            <tr>
+              <td>
                 <select bind:value={coursePoint.PointType}>
                   {#each Object.values(CoursePointType) as pointType}
-                    <option value={pointType}>{pointType}</option>
+                    <option value={pointType}>{emoji(pointType)}</option>
                   {/each}
                 </select>
-              </label>
-            </form>
-          </div>
-          <div>
-            {JSON.stringify(trackPoint)}
-          </div>
-        </div>
-      {/each}
-    </ul>
-  {/if}
+              </td>
+              <td>
+                <input bind:value={coursePoint.Name} type="string" maxlength="10" />
+              </td>
+              <td>
+                {Intl.NumberFormat(undefined, {
+                  style: 'unit',
+                  unit: 'kilometer',
+                  maximumFractionDigits: 1,
+                }).format(trackPoint.DistanceMeters / 1000)}
+              </td>
+            </tr>
+          {/each}
+        </ul>
+      {/if}
+    </tbody>
+  </table>
 </main>
 
 <style>
