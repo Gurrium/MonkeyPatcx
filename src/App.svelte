@@ -56,10 +56,9 @@
     DistanceMeters?: number
   }
 
-  let files: FileList
+  let files: FileList | null
   let course: any
-  let typedCourse: { '?xml': string; TrainingCenterDatabase: TrainingCenterDatabase }
-  let distanceKiloMeters: number
+  let typedCourse: { '?xml': string; TrainingCenterDatabase: TrainingCenterDatabase } | null
 
   function handleFileInput() {
     const parser = new XMLParser({
@@ -78,9 +77,10 @@
         }
       },
     })
+
     files
-      .item(0)
-      .text()
+      ?.item(0)
+      ?.text()
       .then((text) => {
         course = parser.parse(text)
         typedCourse = parser.parse(text) as {
@@ -90,23 +90,50 @@
       })
   }
 
+  let newCoursePointInput: {
+    name: string | null
+    type: CoursePointType | null
+    distanceKiloMeters: number | null
+  } = { name: null, type: null, distanceKiloMeters: null }
   function handleAddingCoursePoint() {
-    const trackPoint = nearestTrackPoint(distanceKiloMeters * 1000)
+    if (
+      !(
+        newCoursePointInput.name &&
+        newCoursePointInput.type &&
+        newCoursePointInput.distanceKiloMeters
+      )
+    ) {
+      return
+    }
+
+    const trackPoint = nearestTrackPoint(newCoursePointInput.distanceKiloMeters * 1000)
+
+    if (!trackPoint) { return }
+
+    if (!typedCourse?.TrainingCenterDatabase.Courses?.Course[0].CoursePoint) {
+      return
+    }
 
     typedCourse.TrainingCenterDatabase.Courses.Course[0].CoursePoint = [
       ...typedCourse.TrainingCenterDatabase.Courses.Course[0].CoursePoint,
       {
-        Name: '',
+        Name: newCoursePointInput.name,
         Time: trackPoint.Time,
         Position: trackPoint.Position,
-        PointType: CoursePointType.Generic,
+        PointType: newCoursePointInput.type,
       },
     ].sort((lhs, rhs) => {
       return lhs.Time.getTime() - rhs.Time.getTime()
     })
+
+    newCoursePointInput = { name: null, type: null, distanceKiloMeters: null }
   }
 
-  function nearestTrackPoint(distanceMeters: number): TrackPoint {
+  function nearestTrackPoint(distanceMeters: number): TrackPoint | null {
+    if (!typedCourse?.TrainingCenterDatabase.Courses?.Course[0].Track) {
+      return null
+    }
+
     const minIndexOverDistanceMeters =
       typedCourse.TrainingCenterDatabase.Courses.Course[0].Track[0].Trackpoint.findIndex(
         (trackPoint) => {
@@ -124,6 +151,10 @@
   }
 
   function timeEquivalentTrackPoint(time: Date): TrackPoint | null {
+    if (!typedCourse?.TrainingCenterDatabase.Courses?.Course[0].Track) {
+      return null
+    }
+
     let minIndexEquivalentTime =
       typedCourse.TrainingCenterDatabase.Courses.Course[0].Track[0].Trackpoint.findIndex(
         (trackPoint) => {
@@ -140,86 +171,202 @@
     }
   }
 
-  let xmlData: string
-  function exportTCX() {
+  let downloadButton: HTMLAnchorElement
+  function download() {
+    if (!typedCourse?.TrainingCenterDatabase.Folders?.Courses?.CourseFolder.CourseNameRef) {
+      return
+    }
+
     const builder = new XMLBuilder({
       format: true,
       ignoreAttributes: false,
       tagValueProcessor: (name, value) => {
         if (name == 'Time' && value instanceof Date) {
-          return value.toISOString()
+          return value.toISOString().replace(".000Z", "Z")
         } else {
           return value as string
         }
       },
     })
 
-    xmlData = encodeURIComponent(builder.build(typedCourse) as string)
+    const xmlData = encodeURIComponent(builder.build(typedCourse) as string)
+
+    downloadButton.href = `data:text/xml;charset=utf-8,${xmlData}`
+    downloadButton.download = `${
+      typedCourse.TrainingCenterDatabase.Folders.Courses.CourseFolder.CourseNameRef[0].Id
+    }-${Date.now()}.tcx`
+    downloadButton.click()
+  }
+
+  function clear() {
+    if (
+      confirm(
+        '編集内容は復元できません。先にダウンロードすることをおすすめします。\n本当にすべて削除しますか？'
+      )
+    ) {
+      typedCourse = null
+    }
   }
 </script>
 
 <main>
-  <form>
-    <label>
-      tcxファイル
-      <input bind:files on:change={handleFileInput} type="file" accept=".tcx" required />
-    </label>
-  </form>
+  <div id="file-operations">
+    {#if typedCourse}
+      <div>
+        <button on:click|preventDefault={download}>Download</button>
+        <a bind:this={downloadButton} hidden aria-hidden="true" />
 
-  <button on:click|preventDefault={exportTCX}>encode</button>
+        <button on:click|preventDefault={clear}> Clear </button>
+      </div>
+    {:else}
+      <div>
+        <form>
+          <label>
+            tcxファイル
+            <input bind:files on:change={handleFileInput} type="file" accept=".tcx" required />
+          </label>
+        </form>
+      </div>
+    {/if}
+  </div>
 
-  {#if xmlData}
-    <a href={`data:text/xml;charset=utf-8,${xmlData}`} download="out.tcx">Download</a>
-  {/if}
+  {#if typedCourse?.TrainingCenterDatabase.Courses?.Course[0].CoursePoint}
+    <div id="tcx-content">
+      <form on:submit|preventDefault={handleAddingCoursePoint}>
+        <div>
+          <label>
+            種別
+            <select bind:value={newCoursePointInput.type} required class="course-point-type">
+              <option value="" hidden disabled selected />
+              {#each Object.values(CoursePointType) as pointType}
+                <option value={pointType}>{emoji(pointType)}</option>
+              {/each}
+            </select>
+          </label>
+        </div>
+        <div>
+          <label>
+            名前
+            <input
+              bind:value={newCoursePointInput.name}
+              type="text"
+              placeholder="スタート"
+              maxlength="10"
+              required
+            />
+          </label>
+        </div>
+        <div>
+          <label>
+            距離
+            <input
+              bind:value={newCoursePointInput.distanceKiloMeters}
+              type="number"
+              placeholder="25.6"
+              min="0"
+              step="0.1"
+              required
+            />
+            [km]
+          </label>
+        </div>
 
-  <form on:submit|preventDefault={handleAddingCoursePoint}>
-    <label>
-      追加する地点 [km]
-      <input
-        bind:value={distanceKiloMeters}
-        type="number"
-        placeholder="25.6"
-        min="0"
-        step="0.1"
-        required
-      />
-    </label>
+        <button id="add-new-point"> 追加する </button>
+      </form>
 
-    <button> 追加する </button>
-  </form>
-
-  <table>
-    <tbody>
-      {#if typedCourse}
-        <ul>
+      <table id="course-point-table">
+        <tbody>
           {#each typedCourse.TrainingCenterDatabase.Courses.Course[0].CoursePoint as coursePoint}
             {@const trackPoint = timeEquivalentTrackPoint(coursePoint.Time)}
 
-            <tr>
-              <td>
-                <select bind:value={coursePoint.PointType}>
-                  {#each Object.values(CoursePointType) as pointType}
-                    <option value={pointType}>{emoji(pointType)}</option>
-                  {/each}
-                </select>
-              </td>
-              <td>
-                <input bind:value={coursePoint.Name} type="string" maxlength="10" />
-              </td>
-              <td>
-                {Intl.NumberFormat(undefined, {
-                  style: 'unit',
-                  unit: 'kilometer',
-                  maximumFractionDigits: 1,
-                }).format(trackPoint.DistanceMeters / 1000)}
-              </td>
-            </tr>
+            {#if trackPoint?.DistanceMeters}
+              <tr class="course-point">
+                <td>
+                  <select class="course-point-type" bind:value={coursePoint.PointType}>
+                    {#each Object.values(CoursePointType) as pointType}
+                      <option value={pointType}>{emoji(pointType)}</option>
+                    {/each}
+                  </select>
+                </td>
+                <td>
+                  <input
+                    class="course-point-name"
+                    bind:value={coursePoint.Name}
+                    type="string"
+                    maxlength="10"
+                  />
+                </td>
+                <td>
+                  {Intl.NumberFormat(undefined, {
+                    style: 'unit',
+                    unit: 'kilometer',
+                    maximumFractionDigits: 1,
+                    minimumFractionDigits: 1,
+                  }).format(trackPoint.DistanceMeters / 1000)}
+                </td>
+                <td>
+                  <a
+                    class="google-map-anchor"
+                    href={`https://google.com/maps/place/${coursePoint.Position.LatitudeDegrees},${coursePoint.Position.LongitudeDegrees}`}
+                    target="_blank">🗺️</a
+                  >
+                </td>
+              </tr>
+            {/if}
           {/each}
-        </ul>
-      {/if}
-    </tbody>
-  </table>
+        </tbody>
+      </table>
+    </div>
+  {/if}
 </main>
 
 <style>
+  button#add-new-point {
+    margin-top: 8px;
+  }
+
+  div#file-operations + div#tcx-content {
+    margin-top: 20px;
+  }
+
+  table#course-point-table {
+    margin-top: 20px;
+  }
+
+  table#course-point-table tr.course-point select.course-point-type {
+    border: none;
+    border-radius: 2px;
+    padding: 0.2em 0.3em;
+  }
+
+  table#course-point-table tr.course-point select.course-point-type:hover {
+    animation: course-point-type-animation 0.5s 1 normal forwards;
+  }
+
+  table#course-point-table tr.course-point select.course-point-type:focus-visible {
+    background-color: #dadadaee;
+    outline: unset;
+  }
+
+  @keyframes course-point-type-animation {
+    from {
+      background-color: unset;
+    }
+    to {
+      background-color: #dadadaee;
+    }
+  }
+
+  table#course-point-table tr.course-point input.course-point-name:not(:hover) {
+    border: unset;
+    padding: 1px 4px;
+  }
+
+  table#course-point-table tr.course-point input.course-point-name:hover {
+    cursor: text;
+  }
+
+  table#course-point-table tr.course-point a.google-map-anchor {
+    text-decoration: unset;
+  }
 </style>
