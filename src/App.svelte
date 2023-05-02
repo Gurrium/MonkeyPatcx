@@ -108,7 +108,9 @@
 
     const trackPoint = nearestTrackPoint(newCoursePointInput.distanceKiloMeters * 1000)
 
-    if (!trackPoint) { return }
+    if (!trackPoint) {
+      return
+    }
 
     if (!typedCourse?.TrainingCenterDatabase.Courses?.Course[0].CoursePoint) {
       return
@@ -182,7 +184,7 @@
       ignoreAttributes: false,
       tagValueProcessor: (name, value) => {
         if (name == 'Time' && value instanceof Date) {
-          return value.toISOString().replace(".000Z", "Z")
+          return value.toISOString().replace('.000Z', 'Z')
         } else {
           return value as string
         }
