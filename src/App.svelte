@@ -313,6 +313,10 @@
                     target="_blank">🗺️</a
                   >
                 </td>
+                <td>
+                  <!-- TODO: CoursePointの削除を実装する -->
+                  <button> 🗑️ </button>
+                </td>
               </tr>
             {/if}
           {/each}
