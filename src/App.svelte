@@ -375,4 +375,9 @@
   table#course-point-table tr.course-point a.google-map-anchor {
     text-decoration: unset;
   }
+
+  table#course-point-table tr.course-point button {
+    background: unset;
+    border: unset;
+  }
 </style>
