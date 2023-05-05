@@ -209,6 +209,17 @@
       typedCourse = null
     }
   }
+
+  function removeCoursePointAt(index: number, name: string): void {
+    if (!typedCourse?.TrainingCenterDatabase?.Courses?.Course[0].CoursePoint) {
+      return
+    }
+
+    if (confirm(`"${name}"を本当に削除しますか？`)) {
+      typedCourse.TrainingCenterDatabase.Courses.Course[0].CoursePoint?.splice(index, 1)
+      typedCourse = typedCourse
+    }
+  }
 </script>
 
 <main>
@@ -278,7 +289,7 @@
 
       <table id="course-point-table">
         <tbody>
-          {#each typedCourse.TrainingCenterDatabase.Courses.Course[0].CoursePoint as coursePoint}
+          {#each typedCourse.TrainingCenterDatabase.Courses.Course[0].CoursePoint as coursePoint, index}
             {@const trackPoint = timeEquivalentTrackPoint(coursePoint.Time)}
 
             {#if trackPoint?.DistanceMeters}
@@ -314,8 +325,11 @@
                   >
                 </td>
                 <td>
-                  <!-- TODO: CoursePointの削除を実装する -->
-                  <button> 🗑️ </button>
+                  <button
+                    on:click|preventDefault={(_) => removeCoursePointAt(index, coursePoint.Name)}
+                  >
+                    🗑️
+                  </button>
                 </td>
               </tr>
             {/if}
@@ -379,5 +393,9 @@
   table#course-point-table tr.course-point button {
     background: unset;
     border: unset;
+  }
+
+  table#course-point-table tr.course-point button:hover {
+    cursor: pointer;
   }
 </style>
