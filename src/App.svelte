@@ -1,14 +1,9 @@
 <script lang="ts">
   import { XMLParser, XMLBuilder } from 'fast-xml-parser'
+  import CoursePoint from './CoursePoint.svelte'
+  import type { TrainingCenterDatabase } from './types/TCX.type'
+  import { CoursePointType } from './types/TCX.type'
 
-  enum CoursePointType {
-    Generic = 'Generic',
-    FirstAid = 'First Aid',
-    Left = 'Left',
-    Right = 'Right',
-    Straight = 'Straight',
-    // TODO: 他のも追加する
-  }
   function emoji(type: CoursePointType): '⬆' | '⬅' | '➡' | '🍙' | '📍' {
     switch (type) {
       case CoursePointType.Generic:
@@ -22,38 +17,6 @@
       case CoursePointType.Straight:
         return '⬆'
     }
-  }
-
-  type Position = {
-    LatitudeDegrees: number
-    LongitudeDegrees: number
-  }
-
-  type TrainingCenterDatabase = { Folders?: Folders; Courses?: CourseList }
-  type Folders = { Courses?: Courses }
-  type Courses = { CourseFolder: CourseFolder }
-  type CourseFolder = { CourseNameRef?: [NameKeyReference] }
-  type NameKeyReference = { Id: string }
-  type CourseList = { Course: Course[] }
-  type Course = { Name: string; Lap?: Lap[]; Track?: Track[]; CoursePoint?: CoursePoint[] }
-  type Lap = {
-    TotalTimeSeconds: number
-    DistanceMeters: number
-    BeginPosition?: Position
-    EndPosition?: Position
-  }
-  type Track = { Trackpoint: TrackPoint[] }
-  type CoursePoint = {
-    Name: string // TODO: 10文字制限
-    Time: Date
-    Position: Position
-    PointType: CoursePointType
-  }
-  type TrackPoint = {
-    Time: Date
-    Position: Position
-    AltitudeMeters?: number
-    DistanceMeters?: number
   }
 
   let files: FileList | null
