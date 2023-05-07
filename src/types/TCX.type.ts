@@ -1,3 +1,8 @@
+export type TCX = {
+  '?xml': string
+  TrainingCenterDatabase: TrainingCenterDatabase
+}
+
 export type TrainingCenterDatabase = { Folders?: Folders; Courses?: CourseList }
 
 type Folders = { Courses?: Courses }
@@ -10,7 +15,7 @@ type NameKeyReference = { Id: string }
 
 type CourseList = { Course: Course[] }
 
-type Course = { Name: string; Lap?: Lap[]; Track?: Track[]; CoursePoint?: CoursePoint[] }
+export type Course = { Name: string; Lap?: Lap[]; Track?: Track[]; CoursePoint?: CoursePoint[] }
 
 type Lap = {
   TotalTimeSeconds: number
@@ -26,7 +31,7 @@ type Position = {
 
 type Track = { Trackpoint: TrackPoint[] }
 
-type TrackPoint = {
+export type TrackPoint = {
   Time: Date
   Position: Position
   AltitudeMeters?: number

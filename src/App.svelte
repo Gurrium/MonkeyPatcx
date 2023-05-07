@@ -1,28 +1,24 @@
 <script lang="ts">
+  import { writable } from 'svelte/store'
   import { XMLParser, XMLBuilder } from 'fast-xml-parser'
-  import CoursePoint from './CoursePoint.svelte'
-  import type { TrainingCenterDatabase } from './types/TCX.type'
+  import { findTimeEquivalentTrackPoint, findNearestTrackPoint } from './lib/TrackPoint+find'
   import { CoursePointType } from './types/TCX.type'
+  import type { TCX, Course } from './types/TCX.type'
+  import CoursePoint from './components/CoursePoint.svelte'
+  import Emoji from './components/Emoji.svelte'
 
-  function emoji(type: CoursePointType): '⬆' | '⬅' | '➡' | '🍙' | '📍' {
-    switch (type) {
-      case CoursePointType.Generic:
-        return '📍'
-      case CoursePointType.FirstAid:
-        return '🍙'
-      case CoursePointType.Left:
-        return '⬅'
-      case CoursePointType.Right:
-        return '➡'
-      case CoursePointType.Straight:
-        return '⬆'
+  const tcx = writable<TCX | null>(null)
+  let course: Course | null
+
+  tcx.subscribe((value) => {
+    if (!value?.TrainingCenterDatabase.Courses || !value.TrainingCenterDatabase.Courses.Course[0]) {
+      course = null
+    } else {
+      course = value.TrainingCenterDatabase.Courses.Course[0]
     }
-  }
+  })
 
   let files: FileList | null
-  let course: any
-  let typedCourse: { '?xml': string; TrainingCenterDatabase: TrainingCenterDatabase } | null
-
   function handleFileInput() {
     const parser = new XMLParser({
       ignoreAttributes: false,
@@ -45,11 +41,7 @@
       ?.item(0)
       ?.text()
       .then((text) => {
-        course = parser.parse(text)
-        typedCourse = parser.parse(text) as {
-          '?xml': string
-          TrainingCenterDatabase: TrainingCenterDatabase
-        }
+        tcx.set(parser.parse(text) as TCX)
       })
   }
 
@@ -69,18 +61,21 @@
       return
     }
 
-    const trackPoint = nearestTrackPoint(newCoursePointInput.distanceKiloMeters * 1000)
-
-    if (!trackPoint) {
+    if (!course || !course.Track || !course.Track[0]) {
       return
     }
 
-    if (!typedCourse?.TrainingCenterDatabase.Courses?.Course[0].CoursePoint) {
+    const trackPoint = findNearestTrackPoint(
+      course.Track[0].Trackpoint,
+      newCoursePointInput.distanceKiloMeters * 1000
+    )
+
+    if (!course.CoursePoint) {
       return
     }
 
-    typedCourse.TrainingCenterDatabase.Courses.Course[0].CoursePoint = [
-      ...typedCourse.TrainingCenterDatabase.Courses.Course[0].CoursePoint,
+    course.CoursePoint = [
+      ...course.CoursePoint,
       {
         Name: newCoursePointInput.name,
         Time: trackPoint.Time,
@@ -94,51 +89,9 @@
     newCoursePointInput = { name: null, type: null, distanceKiloMeters: null }
   }
 
-  function nearestTrackPoint(distanceMeters: number): TrackPoint | null {
-    if (!typedCourse?.TrainingCenterDatabase.Courses?.Course[0].Track) {
-      return null
-    }
-
-    const minIndexOverDistanceMeters =
-      typedCourse.TrainingCenterDatabase.Courses.Course[0].Track[0].Trackpoint.findIndex(
-        (trackPoint) => {
-          if (trackPoint.DistanceMeters) {
-            return trackPoint.DistanceMeters > distanceMeters
-          } else {
-            return false
-          }
-        }
-      )
-
-    return typedCourse.TrainingCenterDatabase.Courses.Course[0].Track[0].Trackpoint[
-      Math.max(0, minIndexOverDistanceMeters - 1)
-    ]
-  }
-
-  function timeEquivalentTrackPoint(time: Date): TrackPoint | null {
-    if (!typedCourse?.TrainingCenterDatabase.Courses?.Course[0].Track) {
-      return null
-    }
-
-    let minIndexEquivalentTime =
-      typedCourse.TrainingCenterDatabase.Courses.Course[0].Track[0].Trackpoint.findIndex(
-        (trackPoint) => {
-          return trackPoint.Time.getTime() === time.getTime()
-        }
-      )
-
-    if (minIndexEquivalentTime == -1) {
-      return null
-    } else {
-      return typedCourse.TrainingCenterDatabase.Courses.Course[0].Track[0].Trackpoint[
-        Math.max(0, minIndexEquivalentTime - 1)
-      ]
-    }
-  }
-
   let downloadButton: HTMLAnchorElement
   function download() {
-    if (!typedCourse?.TrainingCenterDatabase.Folders?.Courses?.CourseFolder.CourseNameRef) {
+    if (!$tcx?.TrainingCenterDatabase.Folders?.Courses?.CourseFolder.CourseNameRef) {
       return
     }
 
@@ -154,11 +107,11 @@
       },
     })
 
-    const xmlData = encodeURIComponent(builder.build(typedCourse) as string)
+    const xmlData = encodeURIComponent(builder.build($tcx) as string)
 
     downloadButton.href = `data:text/xml;charset=utf-8,${xmlData}`
     downloadButton.download = `${
-      typedCourse.TrainingCenterDatabase.Folders.Courses.CourseFolder.CourseNameRef[0].Id
+      $tcx.TrainingCenterDatabase.Folders.Courses.CourseFolder.CourseNameRef[0].Id
     }-${Date.now()}.tcx`
     downloadButton.click()
   }
@@ -169,25 +122,28 @@
         '編集内容は復元できません。先にダウンロードすることをおすすめします。\n本当にすべて削除しますか？'
       )
     ) {
-      typedCourse = null
+      tcx.set(null)
     }
   }
 
   function removeCoursePointAt(index: number, name: string): void {
-    if (!typedCourse?.TrainingCenterDatabase?.Courses?.Course[0].CoursePoint) {
+    if (!course?.CoursePoint) {
       return
     }
 
     if (confirm(`"${name}"を本当に削除しますか？`)) {
-      typedCourse.TrainingCenterDatabase.Courses.Course[0].CoursePoint?.splice(index, 1)
-      typedCourse = typedCourse
+      tcx.update((tcx) => {
+        course?.CoursePoint?.splice(index, 1)
+
+        return tcx
+      })
     }
   }
 </script>
 
 <main>
   <div id="file-operations">
-    {#if typedCourse}
+    {#if $tcx}
       <div>
         <button on:click|preventDefault={download}>Download</button>
         <a bind:this={downloadButton} hidden aria-hidden="true" />
@@ -206,7 +162,7 @@
     {/if}
   </div>
 
-  {#if typedCourse?.TrainingCenterDatabase.Courses?.Course[0].CoursePoint}
+  {#if course?.CoursePoint}
     <div id="tcx-content">
       <form on:submit|preventDefault={handleAddingCoursePoint}>
         <div>
@@ -215,7 +171,7 @@
             <select bind:value={newCoursePointInput.type} required class="course-point-type">
               <option value="" hidden disabled selected />
               {#each Object.values(CoursePointType) as pointType}
-                <option value={pointType}>{emoji(pointType)}</option>
+                <option value={pointType}><Emoji coursePointType={pointType} /></option>
               {/each}
             </select>
           </label>
@@ -252,51 +208,22 @@
 
       <table id="course-point-table">
         <tbody>
-          {#each typedCourse.TrainingCenterDatabase.Courses.Course[0].CoursePoint as coursePoint, index}
-            {@const trackPoint = timeEquivalentTrackPoint(coursePoint.Time)}
+          {#if course?.Track}
+            {#each course?.CoursePoint as coursePoint, index}
+              {@const trackPoint = findTimeEquivalentTrackPoint(
+                course?.Track[0].Trackpoint,
+                coursePoint.Time
+              )}
 
-            {#if trackPoint?.DistanceMeters}
-              <tr class="course-point">
-                <td>
-                  <select class="course-point-type" bind:value={coursePoint.PointType}>
-                    {#each Object.values(CoursePointType) as pointType}
-                      <option value={pointType}>{emoji(pointType)}</option>
-                    {/each}
-                  </select>
-                </td>
-                <td>
-                  <input
-                    class="course-point-name"
-                    bind:value={coursePoint.Name}
-                    type="string"
-                    maxlength="10"
-                  />
-                </td>
-                <td>
-                  {Intl.NumberFormat(undefined, {
-                    style: 'unit',
-                    unit: 'kilometer',
-                    maximumFractionDigits: 1,
-                    minimumFractionDigits: 1,
-                  }).format(trackPoint.DistanceMeters / 1000)}
-                </td>
-                <td>
-                  <a
-                    class="google-map-anchor"
-                    href={`https://google.com/maps/place/${coursePoint.Position.LatitudeDegrees},${coursePoint.Position.LongitudeDegrees}`}
-                    target="_blank">🗺️</a
-                  >
-                </td>
-                <td>
-                  <button
-                    on:click|preventDefault={(_) => removeCoursePointAt(index, coursePoint.Name)}
-                  >
-                    🗑️
-                  </button>
-                </td>
-              </tr>
-            {/if}
-          {/each}
+              {#if trackPoint?.DistanceMeters}
+                <CoursePoint
+                  {coursePoint}
+                  {trackPoint}
+                  on:remove={() => removeCoursePointAt(index, coursePoint.Name)}
+                />
+              {/if}
+            {/each}
+          {/if}
         </tbody>
       </table>
     </div>
@@ -316,21 +243,6 @@
     margin-top: 20px;
   }
 
-  table#course-point-table tr.course-point select.course-point-type {
-    border: none;
-    border-radius: 2px;
-    padding: 0.2em 0.3em;
-  }
-
-  table#course-point-table tr.course-point select.course-point-type:hover {
-    animation: course-point-type-animation 0.5s 1 normal forwards;
-  }
-
-  table#course-point-table tr.course-point select.course-point-type:focus-visible {
-    background-color: #dadadaee;
-    outline: unset;
-  }
-
   @keyframes course-point-type-animation {
     from {
       background-color: unset;
@@ -338,27 +250,5 @@
     to {
       background-color: #dadadaee;
     }
-  }
-
-  table#course-point-table tr.course-point input.course-point-name:not(:hover) {
-    border: unset;
-    padding: 1px 4px;
-  }
-
-  table#course-point-table tr.course-point input.course-point-name:hover {
-    cursor: text;
-  }
-
-  table#course-point-table tr.course-point a.google-map-anchor {
-    text-decoration: unset;
-  }
-
-  table#course-point-table tr.course-point button {
-    background: unset;
-    border: unset;
-  }
-
-  table#course-point-table tr.course-point button:hover {
-    cursor: pointer;
   }
 </style>
