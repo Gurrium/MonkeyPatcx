@@ -12,8 +12,11 @@ export function findNearestTrackPoint(
     }
   })
 
-  // FIXME: 見つからなかったら最後の要素を返す
-  return trackPoints[Math.max(0, minIndexOverDistanceMeters - 1)]
+  if (minIndexOverDistanceMeters == -1) {
+    return trackPoints[trackPoints.length - 1]
+  } else {
+    return trackPoints[Math.max(0, minIndexOverDistanceMeters - 1)]
+  }
 }
 
 export function findTimeEquivalentTrackPoint(

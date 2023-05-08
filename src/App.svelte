@@ -18,7 +18,13 @@
 
   let files: FileList | null
   $: if (files) {
-    files[0].text().then((text) => (tcx = parser.parse(text) as TCX))
+    parse(files[0])
+  }
+  function parse(file: File) {
+    file.text().then((text) => {
+      tcx = parser.parse(text) as TCX
+      console.log('parsed')
+    })
   }
 
   let newCoursePointInput: {
@@ -31,7 +37,7 @@
       !(
         newCoursePointInput.name &&
         newCoursePointInput.type &&
-        newCoursePointInput.distanceKiloMeters
+        newCoursePointInput.distanceKiloMeters !== null
       )
     ) {
       return
@@ -91,13 +97,13 @@
   }
 
   function removeCoursePointAt(index: number, name: string): void {
-    if (!course?.CoursePoint) {
+    if (!(course?.CoursePoint && tcx?.TrainingCenterDatabase.Courses?.Course)) {
       return
     }
 
     if (confirm(`"${name}"を本当に削除しますか？`)) {
       course?.CoursePoint?.splice(index, 1)
-      tcx = tcx
+      tcx.TrainingCenterDatabase.Courses.Course[0] = course
     }
   }
 </script>
