@@ -1,48 +1,24 @@
 <script lang="ts">
-  import { writable } from 'svelte/store'
-  import { XMLParser, XMLBuilder } from 'fast-xml-parser'
+  import { parser } from './lib/parser'
+  import { builder } from './lib/builder'
   import { findTimeEquivalentTrackPoint, findNearestTrackPoint } from './lib/TrackPoint+find'
   import { CoursePointType } from './types/TCX.type'
   import type { TCX, Course } from './types/TCX.type'
   import CoursePoint from './components/CoursePoint.svelte'
   import Emoji from './components/Emoji.svelte'
 
-  const tcx = writable<TCX | null>(null)
+  let tcx: TCX | null = null
   let course: Course | null
 
-  tcx.subscribe((value) => {
-    if (!value?.TrainingCenterDatabase.Courses || !value.TrainingCenterDatabase.Courses.Course[0]) {
-      course = null
-    } else {
-      course = value.TrainingCenterDatabase.Courses.Course[0]
-    }
-  })
+  $: if (!tcx?.TrainingCenterDatabase.Courses || !tcx.TrainingCenterDatabase.Courses.Course[0]) {
+    course = null
+  } else {
+    course = tcx.TrainingCenterDatabase.Courses.Course[0]
+  }
 
   let files: FileList | null
-  function handleFileInput() {
-    const parser = new XMLParser({
-      ignoreAttributes: false,
-      isArray: (name, jpath) => {
-        return (
-          ['CourseNameRef', 'Course', 'Track', 'CoursePoint'].includes(name) ||
-          ['Course.Lap'].some((candidate: string) => jpath.endsWith(candidate))
-        )
-      },
-      tagValueProcessor: (tagName, tagValue) => {
-        if (tagName == 'Time') {
-          return new Date(tagValue)
-        } else {
-          return null
-        }
-      },
-    })
-
-    files
-      ?.item(0)
-      ?.text()
-      .then((text) => {
-        tcx.set(parser.parse(text) as TCX)
-      })
+  $: if (files) {
+    files[0].text().then((text) => (tcx = parser.parse(text) as TCX))
   }
 
   let newCoursePointInput: {
@@ -91,27 +67,15 @@
 
   let downloadButton: HTMLAnchorElement
   function download() {
-    if (!$tcx?.TrainingCenterDatabase.Folders?.Courses?.CourseFolder.CourseNameRef) {
+    if (!tcx?.TrainingCenterDatabase.Folders?.Courses?.CourseFolder.CourseNameRef) {
       return
     }
 
-    const builder = new XMLBuilder({
-      format: true,
-      ignoreAttributes: false,
-      tagValueProcessor: (name, value) => {
-        if (name == 'Time' && value instanceof Date) {
-          return value.toISOString().replace('.000Z', 'Z')
-        } else {
-          return value as string
-        }
-      },
-    })
-
-    const xmlData = encodeURIComponent(builder.build($tcx) as string)
+    const xmlData = encodeURIComponent(builder.build(tcx) as string)
 
     downloadButton.href = `data:text/xml;charset=utf-8,${xmlData}`
     downloadButton.download = `${
-      $tcx.TrainingCenterDatabase.Folders.Courses.CourseFolder.CourseNameRef[0].Id
+      tcx.TrainingCenterDatabase.Folders.Courses.CourseFolder.CourseNameRef[0].Id
     }-${Date.now()}.tcx`
     downloadButton.click()
   }
@@ -122,7 +86,7 @@
         '編集内容は復元できません。先にダウンロードすることをおすすめします。\n本当にすべて削除しますか？'
       )
     ) {
-      tcx.set(null)
+      tcx = null
     }
   }
 
@@ -132,18 +96,15 @@
     }
 
     if (confirm(`"${name}"を本当に削除しますか？`)) {
-      tcx.update((tcx) => {
-        course?.CoursePoint?.splice(index, 1)
-
-        return tcx
-      })
+      course?.CoursePoint?.splice(index, 1)
+      tcx = tcx
     }
   }
 </script>
 
 <main>
   <div id="file-operations">
-    {#if $tcx}
+    {#if tcx}
       <div>
         <button on:click|preventDefault={download}>Download</button>
         <a bind:this={downloadButton} hidden aria-hidden="true" />
@@ -151,14 +112,10 @@
         <button on:click|preventDefault={clear}> Clear </button>
       </div>
     {:else}
-      <div>
-        <form>
-          <label>
-            tcxファイル
-            <input bind:files on:change={handleFileInput} type="file" accept=".tcx" required />
-          </label>
-        </form>
-      </div>
+      <label>
+        tcxファイル
+        <input bind:files type="file" accept=".tcx" />
+      </label>
     {/if}
   </div>
 
@@ -168,7 +125,7 @@
         <div>
           <label>
             種別
-            <select bind:value={newCoursePointInput.type} required class="course-point-type">
+            <select bind:value={newCoursePointInput.type} required>
               <option value="" hidden disabled selected />
               {#each Object.values(CoursePointType) as pointType}
                 <option value={pointType}><Emoji coursePointType={pointType} /></option>
