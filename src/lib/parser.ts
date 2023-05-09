@@ -4,15 +4,22 @@ export const parser = new XMLParser({
   ignoreAttributes: false,
   isArray: (name, jpath) => {
     return (
-      ['CourseNameRef', 'Course', 'Track', 'CoursePoint'].includes(name) ||
+      ['CourseNameRef', 'Course', 'Track', 'Trackpoint', 'CoursePoint'].includes(name) ||
       ['Course.Lap'].some((candidate: string) => jpath.endsWith(candidate))
     )
   },
+  numberParseOptions: {
+    leadingZeros: true,
+    hex: false,
+    eNotation: true,
+  },
   tagValueProcessor: (tagName, tagValue) => {
-    if (tagName == 'Time') {
-      return new Date(tagValue)
-    } else {
+    if (tagName === 'Name') {
       return null
+    } else {
+      return tagValue
     }
   },
+  parseTagValue: true,
+  parseAttributeValue: true,
 })

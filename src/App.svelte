@@ -1,79 +1,82 @@
 <script lang="ts">
-  import { parser } from './lib/parser'
+  import { isLeft } from 'fp-ts/Either'
+  import { PathReporter } from 'io-ts/PathReporter'
+  import CoursePointRow from './components/CoursePointRow.svelte'
+  import CoursePointTypeOptions from './components/CoursePointTypeOptions.svelte'
+  import { findNearestTrackPoint, findTimeEquivalentTrackPoint } from './lib/TrackPoint+find'
   import { builder } from './lib/builder'
-  import { findTimeEquivalentTrackPoint, findNearestTrackPoint } from './lib/TrackPoint+find'
-  import { CoursePointType } from './types/TCX.type'
-  import type { TCX, Course } from './types/TCX.type'
-  import CoursePoint from './components/CoursePoint.svelte'
-  import Emoji from './components/Emoji.svelte'
+  import { parser } from './lib/parser'
+  import type { CoursePointT, CoursePointTypeT, TCXT } from './types/TCX.type'
+  import { TCX } from './types/TCX.type'
 
-  let tcx: TCX | null = null
-  let course: Course | null
-
-  $: if (!tcx?.TrainingCenterDatabase.Courses || !tcx.TrainingCenterDatabase.Courses.Course[0]) {
-    course = null
-  } else {
-    course = tcx.TrainingCenterDatabase.Courses.Course[0]
-  }
+  let tcx: TCXT | null = null
 
   let files: FileList | null
-  $: if (files) {
+  $: if (files != null) {
     parse(files[0])
   }
   function parse(file: File) {
     file.text().then((text) => {
-      tcx = parser.parse(text) as TCX
-      console.log('parsed')
+      const parsed = parser.parse(text)
+      const decoded = TCX.decode(parsed)
+
+      if (isLeft(decoded)) {
+        console.error(`Could not validate data: ${PathReporter.report(decoded).join('\n')}`)
+        return
+      }
+
+      tcx = decoded.right
     })
   }
 
   let newCoursePointInput: {
     name: string | null
-    type: CoursePointType | null
+    type: CoursePointTypeT | null
     distanceKiloMeters: number | null
   } = { name: null, type: null, distanceKiloMeters: null }
   function handleAddingCoursePoint() {
     if (
-      !(
-        newCoursePointInput.name &&
-        newCoursePointInput.type &&
-        newCoursePointInput.distanceKiloMeters !== null
-      )
+      newCoursePointInput.name == null ||
+      newCoursePointInput.type == null ||
+      newCoursePointInput.distanceKiloMeters == null
     ) {
       return
     }
 
-    if (!course || !course.Track || !course.Track[0]) {
+    if (tcx?.TrainingCenterDatabase.Courses.Course[0] == null) {
       return
     }
+
+    const course = tcx.TrainingCenterDatabase.Courses.Course[0]
 
     const trackPoint = findNearestTrackPoint(
       course.Track[0].Trackpoint,
       newCoursePointInput.distanceKiloMeters * 1000
     )
 
-    if (!course.CoursePoint) {
+    if (course.CoursePoint == null) {
       return
     }
 
-    course.CoursePoint = [
-      ...course.CoursePoint,
-      {
-        Name: newCoursePointInput.name,
-        Time: trackPoint.Time,
-        Position: trackPoint.Position,
-        PointType: newCoursePointInput.type,
-      },
-    ].sort((lhs, rhs) => {
+    const newCoursePoint: CoursePointT = {
+      Name: newCoursePointInput.name,
+      Time: trackPoint.Time,
+      Position: trackPoint.Position,
+      PointType: newCoursePointInput.type,
+    }
+
+    course.CoursePoint = [...course.CoursePoint, newCoursePoint].sort((lhs, rhs) => {
       return lhs.Time.getTime() - rhs.Time.getTime()
     })
+
+    tcx.TrainingCenterDatabase.Courses.Course[0] = course
 
     newCoursePointInput = { name: null, type: null, distanceKiloMeters: null }
   }
 
   let downloadButton: HTMLAnchorElement
   function download() {
-    if (!tcx?.TrainingCenterDatabase.Folders?.Courses?.CourseFolder.CourseNameRef) {
+    if (tcx?.TrainingCenterDatabase.Folders.Courses.CourseFolder.CourseNameRef == null) {
       return
     }
 
@@ -97,12 +100,18 @@
   }
 
   function removeCoursePointAt(index: number, name: string): void {
-    if (!(course?.CoursePoint && tcx?.TrainingCenterDatabase.Courses?.Course)) {
+    if (tcx?.TrainingCenterDatabase.Courses.Course[0] == null) {
+      return
+    }
+
+    const course = tcx.TrainingCenterDatabase.Courses.Course[0]
+
+    if (course.CoursePoint == null) {
       return
     }
 
     if (confirm(`"${name}"を本当に削除しますか？`)) {
-      course?.CoursePoint?.splice(index, 1)
+      course.CoursePoint.splice(index, 1)
       tcx.TrainingCenterDatabase.Courses.Course[0] = course
     }
   }
@@ -110,8 +119,9 @@
 
 <main>
   <div id="file-operations">
-    {#if tcx}
+    {#if tcx != null}
       <div>
+        <!-- TODO: 日本語にする -->
         <button on:click|preventDefault={download}>Download</button>
         <a bind:this={downloadButton} hidden aria-hidden="true" />
 
@@ -125,17 +135,14 @@
     {/if}
   </div>
 
-  {#if course?.CoursePoint}
+  {#if tcx?.TrainingCenterDatabase.Courses.Course[0].CoursePoint != null}
     <div id="tcx-content">
       <form on:submit|preventDefault={handleAddingCoursePoint}>
         <div>
           <label>
             種別
             <select bind:value={newCoursePointInput.type} required>
-              <option value="" hidden disabled selected />
-              {#each Object.values(CoursePointType) as pointType}
-                <option value={pointType}><Emoji coursePointType={pointType} /></option>
-              {/each}
+              <CoursePointTypeOptions />
             </select>
           </label>
         </div>
@@ -171,15 +178,15 @@
 
       <table id="course-point-table">
         <tbody>
-          {#if course?.Track}
-            {#each course?.CoursePoint as coursePoint, index}
+          {#if tcx?.TrainingCenterDatabase.Courses.Course[0].Track != null}
+            {#each tcx.TrainingCenterDatabase.Courses.Course[0].CoursePoint as coursePoint, index}
               {@const trackPoint = findTimeEquivalentTrackPoint(
-                course?.Track[0].Trackpoint,
+                tcx.TrainingCenterDatabase.Courses.Course[0].Track[0].Trackpoint,
                 coursePoint.Time
               )}
 
-              {#if trackPoint?.DistanceMeters}
-                <CoursePoint
+              {#if trackPoint?.DistanceMeters != null}
+                <CoursePointRow
                   {coursePoint}
                   {trackPoint}
                   on:remove={() => removeCoursePointAt(index, coursePoint.Name)}
@@ -204,14 +211,5 @@
 
   table#course-point-table {
     margin-top: 20px;
-  }
-
-  @keyframes course-point-type-animation {
-    from {
-      background-color: unset;
-    }
-    to {
-      background-color: #dadadaee;
-    }
   }
 </style>
