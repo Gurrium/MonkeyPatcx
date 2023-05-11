@@ -1,11 +1,10 @@
 <script lang="ts">
-  import type { CoursePoint, TrackPoint } from '../types/TCX.type'
-  import { CoursePointType } from '../types/TCX.type'
-  import Emoji from './Emoji.svelte'
   import { createEventDispatcher } from 'svelte'
+  import type { CoursePointT, TrackPointT } from '../types/TCX.type'
+  import CoursePointTypeOptions from './CoursePointTypeOptions.svelte'
 
-  export let coursePoint: CoursePoint
-  export let trackPoint: TrackPoint
+  export let coursePoint: CoursePointT
+  export let trackPoint: TrackPointT
 
   const dispatch = createEventDispatcher()
 </script>
@@ -13,23 +12,19 @@
 <tr id="course-point">
   <td>
     <select id="course-point-type" bind:value={coursePoint.PointType}>
-      {#each Object.values(CoursePointType) as pointType}
-        <option value={pointType}><Emoji coursePointType={pointType} /></option>
-      {/each}
+      <CoursePointTypeOptions />
     </select>
   </td>
   <td>
     <input id="course-point-name" bind:value={coursePoint.Name} type="string" maxlength="10" />
   </td>
   <td>
-    {#if trackPoint.DistanceMeters}
-      {Intl.NumberFormat(undefined, {
-        style: 'unit',
-        unit: 'kilometer',
-        maximumFractionDigits: 1,
-        minimumFractionDigits: 1,
-      }).format(trackPoint.DistanceMeters / 1000)}
-    {/if}
+    {Intl.NumberFormat(undefined, {
+      style: 'unit',
+      unit: 'kilometer',
+      maximumFractionDigits: 1,
+      minimumFractionDigits: 1,
+    }).format(trackPoint.DistanceMeters / 1000)}
   </td>
   <td>
     <a
@@ -54,6 +49,15 @@
     animation: course-point-type-animation 0.5s 1 normal forwards;
   }
 
+  @keyframes course-point-type-animation {
+    from {
+      background-color: unset;
+    }
+    to {
+      background-color: #dadadaee;
+    }
+  }
+
   tr#course-point select#course-point-type:focus-visible {
     background-color: #dadadaee;
     outline: unset;
@@ -73,11 +77,6 @@
   }
 
   tr#course-point button {
-    background: unset;
-    border: unset;
-  }
-
-  tr#course-point button:hover {
-    cursor: pointer;
+    margin-left: 12px;
   }
 </style>

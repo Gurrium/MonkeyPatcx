@@ -1,15 +1,11 @@
-import type { TrackPoint } from '../types/TCX.type'
+import type { TrackPointT } from '../types/TCX.type'
 
 export function findNearestTrackPoint(
-  trackPoints: TrackPoint[],
+  trackPoints: TrackPointT[],
   distanceMeters: number
-): TrackPoint {
+): TrackPointT {
   const minIndexOverDistanceMeters = trackPoints.findIndex((trackPoint) => {
-    if (trackPoint.DistanceMeters) {
-      return trackPoint.DistanceMeters > distanceMeters
-    } else {
-      return false
-    }
+    return trackPoint.DistanceMeters > distanceMeters
   })
 
   if (minIndexOverDistanceMeters == -1) {
@@ -20,9 +16,9 @@ export function findNearestTrackPoint(
 }
 
 export function findTimeEquivalentTrackPoint(
-  trackPoints: TrackPoint[],
+  trackPoints: TrackPointT[],
   time: Date
-): TrackPoint | null {
+): TrackPointT | null {
   let minIndexEquivalentTime = trackPoints.findIndex((trackPoint) => {
     return trackPoint.Time.getTime() === time.getTime()
   })

@@ -20,6 +20,8 @@
     "eslint": "^8.28.0",
     "eslint-config-prettier": "^8.5.0",
     "eslint-plugin-svelte": "^2.26.0",
+    "fp-ts": "^2.15.0",
+    "io-ts": "^2.2.20",
     "prettier": "^2.8.0",
     "prettier-plugin-svelte": "^2.8.1",
     "svelte": "^3.57.0",
