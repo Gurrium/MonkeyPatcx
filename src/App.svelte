@@ -10,7 +10,9 @@
   import { TCX } from './types/TCX.type'
 
   let tcx: TCXT | null = null
+  let didFailToParse = false
 
+  let fileInput: HTMLInputElement | null = null
   let files: FileList | null
   $: if (files != null) {
     parse(files[0])
@@ -20,10 +22,18 @@
       const parsed = parser.parse(text)
       const decoded = TCX.decode(parsed)
 
-      if (isLeft(decoded)) {
-        console.error(`Could not validate data: ${PathReporter.report(decoded).join('\n')}`)
+      if (
+        isLeft(decoded) ||
+        decoded.right.TrainingCenterDatabase.Courses.Course.length > 1 ||
+        decoded.right.TrainingCenterDatabase.Courses.Course[0].Track.length > 1
+      ) {
+        didFailToParse = true
+        fileInput!.value = ''
+        alert('tcxファイルの解析に失敗しました。')
         return
       }
+
+      didFailToParse = false
 
       tcx = decoded.right
     })
@@ -130,10 +140,16 @@
     {:else}
       <label>
         tcxファイル
-        <input bind:files type="file" accept=".tcx" />
+        <input bind:this={fileInput} bind:files type="file" accept=".tcx" />
       </label>
     {/if}
   </div>
+
+  {#if didFailToParse}
+    <div id="bug-report-form">
+      <a href="https://forms.gle/zHJd6sMSskHa8UgU8">不具合報告フォーム</a>
+    </div>
+  {/if}
 
   {#if tcx?.TrainingCenterDatabase.Courses.Course[0].CoursePoint != null}
     <div id="tcx-content">
@@ -211,5 +227,9 @@
 
   table#course-point-table {
     margin-top: 20px;
+  }
+
+  div#bug-report-form {
+    margin-top: 12px;
   }
 </style>
