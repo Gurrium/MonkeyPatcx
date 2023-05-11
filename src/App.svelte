@@ -147,7 +147,7 @@
 
   {#if didFailToParse}
     <div id="bug-report-form">
-      <a href="https://forms.gle/zHJd6sMSskHa8UgU8">不具合報告フォーム</a>
+      <a href="https://forms.gle/zHJd6sMSskHa8UgU8" target="_blank">不具合報告フォーム</a>
     </div>
   {/if}
 
