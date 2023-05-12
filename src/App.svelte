@@ -1,6 +1,5 @@
 <script lang="ts">
   import { isLeft } from 'fp-ts/Either'
-  import { PathReporter } from 'io-ts/PathReporter'
   import CoursePointRow from './components/CoursePointRow.svelte'
   import CoursePointTypeOptions from './components/CoursePointTypeOptions.svelte'
   import { findNearestTrackPoint, findTimeEquivalentTrackPoint } from './lib/TrackPoint+find'
