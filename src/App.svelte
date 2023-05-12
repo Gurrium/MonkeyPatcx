@@ -126,6 +126,14 @@
   }
 </script>
 
+<svelte:window
+  on:beforeunload={(event) => {
+    event.preventDefault()
+    
+    return (event.returnValue = '')
+  }}
+/>
+
 <main>
   <div id="file-operations">
     {#if tcx != null}
