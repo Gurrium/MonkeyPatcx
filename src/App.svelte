@@ -33,6 +33,7 @@
       }
 
       didFailToParse = false
+      didDownload = false
 
       tcx = decoded.right
     })
@@ -83,6 +84,7 @@
     newCoursePointInput = { name: null, type: null, distanceKiloMeters: null }
   }
 
+  let didDownload = false
   let downloadButton: HTMLAnchorElement
   function download() {
     if (tcx?.TrainingCenterDatabase.Folders.Courses.CourseFolder.CourseNameRef == null) {
@@ -96,6 +98,7 @@
       tcx.TrainingCenterDatabase.Folders.Courses.CourseFolder.CourseNameRef[0].Id
     }-${Date.now()}.tcx`
     downloadButton.click()
+    didDownload = true
   }
 
   function clear() {
@@ -105,6 +108,7 @@
       )
     ) {
       tcx = null
+      didDownload = false
     }
   }
 
@@ -129,7 +133,7 @@
 <svelte:window
   on:beforeunload={(event) => {
     event.preventDefault()
-    
+
     return (event.returnValue = '')
   }}
 />
@@ -221,6 +225,12 @@
       </table>
     </div>
   {/if}
+
+  {#if didDownload}
+    <div id="wish-list">
+      <a href="https://www.amazon.jp/hz/wishlist/ls/WUEQ18VE6LAE?ref_=wl_share">欲しい物リスト</a>
+    </div>
+  {/if}
 </main>
 
 <style>
@@ -238,5 +248,14 @@
 
   div#bug-report-form {
     margin-top: 12px;
+  }
+
+  div#wish-list {
+    margin-top: 30px;
+  }
+
+  div#wish-list a {
+    text-decoration: none;
+    color: #dddddd;
   }
 </style>
