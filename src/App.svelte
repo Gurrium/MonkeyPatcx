@@ -128,15 +128,17 @@
       tcx.TrainingCenterDatabase.Courses.Course[0] = course
     }
   }
-</script>
 
-<svelte:window
-  on:beforeunload={(event) => {
+  function preventUnload(event) {
     event.preventDefault()
-
     return (event.returnValue = '')
-  }}
-/>
+  }
+  $: if (tcx != null) {
+    window.addEventListener('beforeunload', preventUnload)
+  } else {
+    window.removeEventListener('beforeunload', preventUnload)
+  }
+</script>
 
 <main>
   <div id="file-operations">
