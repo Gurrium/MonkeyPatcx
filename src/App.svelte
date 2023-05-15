@@ -230,7 +230,7 @@
 
   {#if didDownload}
     <div id="wish-list">
-      <a href="https://www.amazon.jp/hz/wishlist/ls/WUEQ18VE6LAE?ref_=wl_share">欲しい物リスト</a>
+      <a href="https://www.amazon.jp/hz/wishlist/ls/WUEQ18VE6LAE?ref_=wl_share" target="_blank">欲しい物リスト</a>
     </div>
   {/if}
 </main>
