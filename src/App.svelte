@@ -144,11 +144,10 @@
   <div id="file-operations">
     {#if tcx != null}
       <div>
-        <!-- TODO: 日本語にする -->
-        <button on:click|preventDefault={download}>Download</button>
+        <button on:click|preventDefault={download}>ダウンロード</button>
         <a bind:this={downloadButton} hidden aria-hidden="true" />
 
-        <button on:click|preventDefault={clear}> Clear </button>
+        <button on:click|preventDefault={clear}> 削除 </button>
       </div>
     {:else}
       <label>
@@ -202,7 +201,7 @@
           </label>
         </div>
 
-        <button id="add-new-point"> 追加する </button>
+        <button id="add-new-point"> 追加 </button>
       </form>
 
       <table id="course-point-table">
