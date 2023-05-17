@@ -82,6 +82,7 @@
     tcx.TrainingCenterDatabase.Courses.Course[0] = course
 
     newCoursePointInput = { name: null, type: null, distanceKiloMeters: null }
+    isDirty = true
   }
 
   let didDownload = false
@@ -99,6 +100,7 @@
     }-${Date.now()}.tcx`
     downloadButton.click()
     didDownload = true
+    isDirty = false
   }
 
   function clear() {
@@ -108,7 +110,6 @@
       )
     ) {
       tcx = null
-      didDownload = false
     }
   }
 
@@ -129,11 +130,12 @@
     }
   }
 
+  let isDirty = false
   function preventUnload(event) {
     event.preventDefault()
     return (event.returnValue = '')
   }
-  $: if (tcx != null) {
+  $: if (tcx != null && isDirty) {
     window.addEventListener('beforeunload', preventUnload)
   } else {
     window.removeEventListener('beforeunload', preventUnload)
@@ -227,7 +229,7 @@
     </div>
   {/if}
 
-  {#if didDownload}
+  {#if tcx != null && didDownload}
     <div id="wish-list">
       <a href="https://www.amazon.jp/hz/wishlist/ls/WUEQ18VE6LAE?ref_=wl_share" target="_blank">欲しい物リスト</a>
     </div>
