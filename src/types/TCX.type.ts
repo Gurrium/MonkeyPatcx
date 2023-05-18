@@ -108,7 +108,7 @@ const TrainingCenterDatabase = t.type({
 
 export const TCX = t.type({
   '?xml': t.type({
-    '@_version': t.number,
+    '@_version': t.string,
     '@_encoding': t.string,
   }),
   TrainingCenterDatabase: TrainingCenterDatabase,

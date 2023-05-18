@@ -20,6 +20,13 @@ export const parser = new XMLParser({
       return tagValue
     }
   },
+  attributeValueProcessor: (attrName, attrValue) => {
+    if (attrName === 'version') {
+      return null
+    } else {
+      return attrValue
+    }
+  },
   parseTagValue: true,
   parseAttributeValue: true,
 })
