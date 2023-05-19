@@ -60,5 +60,6 @@
   tr#course-point button {
     font-size: 0.2em;
     margin-left: 12px;
+    padding: 1px 3px;
   }
 </style>
