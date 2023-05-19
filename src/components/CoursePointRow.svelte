@@ -39,28 +39,9 @@
 </tr>
 
 <style>
-  tr#course-point select#course-point-type {
-    border: none;
-    border-radius: 2px;
-    padding: 0.2em 0.3em;
-  }
-
-  tr#course-point select#course-point-type:hover {
-    animation: course-point-type-animation 0.5s 1 normal forwards;
-  }
-
-  @keyframes course-point-type-animation {
-    from {
-      background-color: unset;
-    }
-    to {
-      background-color: #dadadaee;
-    }
-  }
-
-  tr#course-point select#course-point-type:focus-visible {
-    background-color: #dadadaee;
-    outline: unset;
+  tr#course-point select#course-point-type:not(:hover) {
+    border: unset;
+    padding: 1px;
   }
 
   tr#course-point input#course-point-name:not(:hover) {
@@ -77,6 +58,7 @@
   }
 
   tr#course-point button {
+    font-size: 0.2em;
     margin-left: 12px;
   }
 </style>
